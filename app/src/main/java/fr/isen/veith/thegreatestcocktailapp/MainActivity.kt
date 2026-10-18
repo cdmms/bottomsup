@@ -1,6 +1,7 @@
 package fr.isen.veith.thegreatestcocktailapp
 
 import android.os.Bundle
+import android.content.Context
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -47,6 +48,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import fr.isen.veith.thegreatestcocktailapp.ui.theme.TheGreatestCocktailAppTheme
@@ -89,7 +91,57 @@ private val promptDeck = listOf(
     GamePrompt("Plot twist", "Swap roles with another willing player and introduce yourself as them—in a kind way.", "WILD", "WILD CARD"),
     GamePrompt("Truth time", "What small thing instantly makes a night out better for you?", "TRUTH", "TRUTH OR DARE"),
     GamePrompt("Dance break", "Make up a signature celebration move. Everyone who wants to can copy it.", "DARE", "QUICK DARE"),
-    GamePrompt("The review", "Rate this imaginary party from one to ten, then deliver a dramatic review.", "VEGAS", "VEGAS DECK")
+    GamePrompt("The review", "Rate this imaginary party from one to ten, then deliver a dramatic review.", "VEGAS", "VEGAS DECK"),
+    GamePrompt("Plot armor", "Invent the most absurd reason you would survive a reality-show finale.", "WILD", "WILD CARD"),
+    GamePrompt("The side quest", "Give the group a harmless 20-second side quest everyone can try or skip.", "DARE", "QUICK DARE"),
+    GamePrompt("Awards night", "Give someone a made-up award for a funny, kind reason.", "DARE", "QUICK DARE"),
+    GamePrompt("Signature move", "Name your signature dance move and demonstrate it if you want.", "DARE", "QUICK DARE"),
+    GamePrompt("Reverse review", "Review your own outfit like a brutally overdramatic fashion critic.", "VEGAS", "VEGAS DECK"),
+    GamePrompt("The trailer", "Pitch tonight as a movie in one sentence. The group names the genre.", "WILD", "WILD CARD"),
+    GamePrompt("Tiny flex", "Share a strangely specific skill you are proud of.", "TRUTH", "TRUTH OR DARE"),
+    GamePrompt("Unexpected talent", "Tell the group a talent you wish you had, then attempt a 5-second demo.", "DARE", "QUICK DARE"),
+    GamePrompt("Group slogan", "Create a slogan for this crew in ten seconds.", "VEGAS", "VEGAS DECK"),
+    GamePrompt("The prediction", "Predict one harmless, funny thing this group will be talking about next week.", "VOTE", "MOST LIKELY TO"),
+    GamePrompt("Never have I ever", "Never have I ever rehearsed a conversation in the mirror. Share the story if you have.", "NEVER", "NEVER HAVE I EVER"),
+    GamePrompt("Never have I ever", "Never have I ever sent a message to the wrong chat. Tell the PG-rated version if you have.", "NEVER", "NEVER HAVE I EVER"),
+    GamePrompt("Never have I ever", "Never have I ever pretended to know a song's lyrics. Bonus points for the fake lyrics.", "NEVER", "NEVER HAVE I EVER"),
+    GamePrompt("Never have I ever", "Never have I ever forgotten someone's name seconds after hearing it.", "NEVER", "NEVER HAVE I EVER"),
+    GamePrompt("Never have I ever", "Never have I ever laughed at a moment when I absolutely shouldn't have.", "NEVER", "NEVER HAVE I EVER"),
+    GamePrompt("Never have I ever", "Never have I ever said 'I'm nearly there' while still getting ready.", "NEVER", "NEVER HAVE I EVER"),
+    GamePrompt("Never have I ever", "Never have I ever practiced an argument in the shower and won.", "NEVER", "NEVER HAVE I EVER"),
+    GamePrompt("Never have I ever", "Never have I ever taken more than ten photos to get one I liked.", "NEVER", "NEVER HAVE I EVER"),
+    GamePrompt("Would you rather", "Have a personal theme song play whenever you enter a room, or have a laugh track follow your jokes?", "CHOICE", "WOULD YOU RATHER"),
+    GamePrompt("Would you rather", "Be able to pause time for ten seconds or rewind one awkward sentence per day?", "CHOICE", "WOULD YOU RATHER"),
+    GamePrompt("Would you rather", "Have your search history read aloud or your last ten emojis appear over your head?", "CHOICE", "WOULD YOU RATHER"),
+    GamePrompt("Would you rather", "Always arrive twenty minutes early or always arrive five minutes late? Defend your choice.", "CHOICE", "WOULD YOU RATHER"),
+    GamePrompt("Would you rather", "Have a wildly dramatic narrator describe your day or a sitcom audience react to it?", "CHOICE", "WOULD YOU RATHER"),
+    GamePrompt("Would you rather", "Only communicate in movie quotes for a day or sing every text message?", "CHOICE", "WOULD YOU RATHER"),
+    GamePrompt("Hot seat", "What is a tiny hill you will absolutely die on?", "HOTSEAT", "HOT SEAT"),
+    GamePrompt("Hot seat", "What is your most irrational but harmless pet peeve?", "HOTSEAT", "HOT SEAT"),
+    GamePrompt("Hot seat", "Which fictional character would be your worst roommate, and why?", "HOTSEAT", "HOT SEAT"),
+    GamePrompt("Hot seat", "What is a skill everyone seems to have that you never learned?", "HOTSEAT", "HOT SEAT"),
+    GamePrompt("Hot seat", "What is your most controversial food opinion? The crew may challenge it.", "HOTSEAT", "HOT SEAT"),
+    GamePrompt("Hot seat", "What would your friends put on your personal warning label? Keep it kind.", "HOTSEAT", "HOT SEAT"),
+    GamePrompt("Story chain", "Start a story with: 'The elevator opened, and everyone was wearing the same hat…' The next player adds one sentence.", "STORY", "STORY CHAIN"),
+    GamePrompt("Story chain", "Start a story with: 'We knew the night was unusual when the pigeon spoke…' Pass it around one sentence at a time.", "STORY", "STORY CHAIN"),
+    GamePrompt("Story chain", "Add one sentence to a group story that must include a missing pizza and a royal crown.", "STORY", "STORY CHAIN"),
+    GamePrompt("Story chain", "Tell a story one word at a time. Stop after the story gets a ridiculous plot twist.", "STORY", "STORY CHAIN"),
+    GamePrompt("Story chain", "The first person names a location; each player adds one sentence that makes the trip stranger.", "STORY", "STORY CHAIN"),
+    GamePrompt("Story chain", "Invent a heist movie where the crew steals something completely useless.", "STORY", "STORY CHAIN"),
+    GamePrompt("Lightning round", "In three seconds, name three things you would bring to a deserted island.", "LIGHTNING", "LIGHTNING ROUND"),
+    GamePrompt("Lightning round", "Rapid fire: name three fictional characters you would invite to dinner.", "LIGHTNING", "LIGHTNING ROUND"),
+    GamePrompt("Lightning round", "In five seconds, name three songs that could rescue a boring party.", "LIGHTNING", "LIGHTNING ROUND"),
+    GamePrompt("Lightning round", "Name three things that are overrated. You have five seconds.", "LIGHTNING", "LIGHTNING ROUND"),
+    GamePrompt("Lightning round", "Say three compliments for the group without repeating a word.", "LIGHTNING", "LIGHTNING ROUND"),
+    GamePrompt("Lightning round", "Name three imaginary jobs you would be excellent at.", "LIGHTNING", "LIGHTNING ROUND"),
+)
+
+private val chaosTwists = listOf(
+    "SPEED ROUND: the next answer must be given in five seconds.",
+    "MOVIE TRAILER: say your next answer like a dramatic narrator.",
+    "CREW HYPE: give another player a genuine, specific compliment.",
+    "PLOT TWIST: add one absurd but harmless detail to the next story.",
+    "SOUND EFFECTS: the group supplies sound effects for the next answer."
 )
 
 private enum class AppTab(val title: String, val symbol: String) {
@@ -113,26 +165,44 @@ private fun BottomsUpApp() {
     var selectedTab by rememberSaveable { mutableStateOf(AppTab.Play) }
     var selectedMode by rememberSaveable { mutableStateOf("Quick Dare") }
     var gameStarted by rememberSaveable { mutableStateOf(false) }
+    var selectedPromptText by rememberSaveable { mutableStateOf<String?>(null) }
     var promptIndex by rememberSaveable { mutableIntStateOf(0) }
     var completedCount by rememberSaveable { mutableIntStateOf(0) }
     var passedCount by rememberSaveable { mutableIntStateOf(0) }
     var playerInput by rememberSaveable { mutableStateOf("") }
     val players = remember { mutableStateListOf("You", "Friend") }
     val savedPromptIndices = remember { mutableStateListOf<Int>() }
-
-    val filteredPrompts = remember(selectedMode) {
-        when (selectedMode) {
-            "Truth or Dare" -> promptDeck.filter { it.category == "TRUTH" || it.category == "DARE" }
-            "Sip or Dare" -> promptDeck.filter { it.category == "DRINK" }
-            "Vegas Deck" -> promptDeck.filter { it.tag == "VEGAS DECK" || it.category == "VEGAS" }
-            "Most Likely To" -> promptDeck.filter { it.category == "VOTE" }
-            "Wild Card" -> promptDeck.filter { it.category == "WILD" }
-            else -> promptDeck
-        }.ifEmpty { promptDeck }
+    val context = LocalContext.current
+    val gamePreferences = remember(context) { context.getSharedPreferences("bottomsup_game", Context.MODE_PRIVATE) }
+    val customPrompts = remember(gamePreferences) {
+        mutableStateListOf<GamePrompt>().apply {
+            gamePreferences.getStringSet("custom_prompts", emptySet()).orEmpty().sorted().forEach { savedText ->
+                add(GamePrompt("Crew custom", savedText, "DARE", "CREW CUSTOM"))
+            }
+        }
     }
-    val currentPrompt = filteredPrompts[promptIndex.mod(filteredPrompts.size)]
+    val allPrompts = promptDeck + customPrompts.toList()
+
+    val filteredPrompts = remember(selectedMode, customPrompts.size) {
+        when (selectedMode) {
+            "Truth or Dare" -> allPrompts.filter { it.category == "TRUTH" || it.category == "DARE" }
+            "Sip or Dare" -> allPrompts.filter { it.category == "DRINK" }
+            "Vegas Deck" -> allPrompts.filter { it.tag == "VEGAS DECK" || it.category == "VEGAS" }
+            "Most Likely To" -> allPrompts.filter { it.category == "VOTE" }
+            "Wild Card" -> allPrompts.filter { it.category == "WILD" }
+            "Never Have I Ever" -> allPrompts.filter { it.category == "NEVER" }
+            "Would You Rather" -> allPrompts.filter { it.category == "CHOICE" }
+            "Hot Seat" -> allPrompts.filter { it.category == "HOTSEAT" }
+            "Story Chain" -> allPrompts.filter { it.category == "STORY" }
+            "Lightning Round" -> allPrompts.filter { it.category == "LIGHTNING" }
+            else -> allPrompts
+        }.ifEmpty { allPrompts }
+    }
+    val currentPrompt = allPrompts.firstOrNull { it.prompt == selectedPromptText }
+        ?: filteredPrompts[promptIndex.mod(filteredPrompts.size)]
 
     fun pickNext() {
+        selectedPromptText = null
         promptIndex = if (filteredPrompts.size > 1) {
             (promptIndex + Random.nextInt(1, filteredPrompts.size)) % filteredPrompts.size
         } else 0
@@ -182,7 +252,7 @@ private fun BottomsUpApp() {
                 AppTab.Play -> PlayScreen(
                     modifier = Modifier.padding(innerPadding),
                     selectedMode = selectedMode,
-                    onModeChange = { selectedMode = it; promptIndex = 0; gameStarted = false },
+                    onModeChange = { selectedMode = it; selectedPromptText = null; promptIndex = 0; gameStarted = false },
                     gameStarted = gameStarted,
                     onStart = { gameStarted = true; pickNext() },
                     prompt = currentPrompt,
@@ -194,10 +264,10 @@ private fun BottomsUpApp() {
                     onPass = { passedCount++; pickNext() },
                     onExit = { gameStarted = false },
                     onSave = {
-                        val globalIndex = promptDeck.indexOf(currentPrompt)
+                        val globalIndex = allPrompts.indexOf(currentPrompt)
                         if (globalIndex !in savedPromptIndices) savedPromptIndices.add(globalIndex)
                     },
-                    isSaved = promptDeck.indexOf(currentPrompt) in savedPromptIndices,
+                    isSaved = allPrompts.indexOf(currentPrompt) in savedPromptIndices,
                     players = players,
                     playerInput = playerInput,
                     onPlayerInput = { playerInput = it },
@@ -209,24 +279,39 @@ private fun BottomsUpApp() {
                 )
                 AppTab.Dares -> DaresScreen(
                     modifier = Modifier.padding(innerPadding),
+                    prompts = allPrompts,
                     savedIndices = savedPromptIndices,
-                    onToggleSave = { idx -> if (idx in savedPromptIndices) savedPromptIndices.remove(idx) else savedPromptIndices.add(idx) }
+                    onToggleSave = { idx -> if (idx in savedPromptIndices) savedPromptIndices.remove(idx) else savedPromptIndices.add(idx) },
+                    onAddPrompt = { rawText ->
+                        val cleaned = rawText.trim()
+                        if (cleaned.isNotEmpty() && customPrompts.size < 120 && allPrompts.none { it.prompt.equals(cleaned, ignoreCase = true) }) {
+                            customPrompts.add(GamePrompt("Crew custom", cleaned, "DARE", "CREW CUSTOM"))
+                            gamePreferences.edit().putStringSet("custom_prompts", customPrompts.map { it.prompt }.toSet()).apply()
+                        }
+                    }
                 )
                 AppTab.Vegas -> VegasScreen(Modifier.padding(innerPadding), onPlayVegas = { selectedMode = "Vegas Deck"; gameStarted = false; selectedTab = AppTab.Play })
                 AppTab.Saved -> SavedScreen(
                     modifier = Modifier.padding(innerPadding),
+                    prompts = allPrompts,
                     indices = savedPromptIndices,
                     onRemove = { savedPromptIndices.remove(it) },
                     onPlay = { idx ->
-                        val prompt = promptDeck[idx]
+                        val prompt = allPrompts[idx]
                         selectedMode = when (prompt.tag) {
                             "VEGAS DECK" -> "Vegas Deck"
                             "TRUTH OR DARE" -> "Truth or Dare"
                             "MOST LIKELY TO" -> "Most Likely To"
                             "WILD CARD" -> "Wild Card"
+                            "NEVER HAVE I EVER" -> "Never Have I Ever"
+                            "WOULD YOU RATHER" -> "Would You Rather"
+                            "HOT SEAT" -> "Hot Seat"
+                            "STORY CHAIN" -> "Story Chain"
+                            "LIGHTNING ROUND" -> "Lightning Round"
                             else -> "Quick Dare"
                         }
                         promptIndex = 0
+                        selectedPromptText = prompt.prompt
                         gameStarted = true
                         selectedTab = AppTab.Play
                     }
@@ -269,7 +354,7 @@ private fun PlayScreen(
             Text("CHOOSE YOUR GAME", color = MutedText, fontSize = 11.sp, letterSpacing = 1.5.sp, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(8.dp))
             Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf("Quick Dare", "Sip or Dare", "Truth or Dare", "Vegas Deck", "Most Likely To", "Wild Card").forEach { mode ->
+                listOf("Quick Dare", "Sip or Dare", "Truth or Dare", "Never Have I Ever", "Would You Rather", "Hot Seat", "Story Chain", "Lightning Round", "Vegas Deck", "Most Likely To", "Wild Card").forEach { mode ->
                     FilterChip(
                         selected = selectedMode == mode,
                         onClick = { onModeChange(mode) },
@@ -333,6 +418,20 @@ private fun PlayScreen(
                     Text(prompt.title, color = Color.White, fontSize = 25.sp, fontWeight = FontWeight.Black, textAlign = TextAlign.Center)
                     Spacer(Modifier.height(12.dp))
                     Text(prompt.prompt, color = Color(0xFFF0EDF9), fontSize = 19.sp, lineHeight = 27.sp, textAlign = TextAlign.Center)
+                    if ((completedCount + passedCount) > 0 && (completedCount + passedCount) % 4 == 0) {
+                        Spacer(Modifier.height(14.dp))
+                        Card(
+                            colors = CardDefaults.cardColors(containerColor = Ultraviolet.copy(alpha = 0.20f)),
+                            shape = RoundedCornerShape(16.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(Modifier.padding(14.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text("⚡ CHAOS ROUND", color = VegasLime, fontSize = 11.sp, fontWeight = FontWeight.Black, letterSpacing = 1.4.sp)
+                                Spacer(Modifier.height(5.dp))
+                                Text(chaosTwists[((completedCount + passedCount) / 4 - 1).mod(chaosTwists.size)], color = Color.White, textAlign = TextAlign.Center, fontSize = 14.sp, lineHeight = 20.sp)
+                            }
+                        }
+                    }
                     Spacer(Modifier.height(18.dp))
                     Surface(color = Ultraviolet.copy(alpha = 0.16f), shape = CircleShape) {
                         Text("YOUR GAME • YOUR RULES", Modifier.padding(horizontal = 13.dp, vertical = 7.dp), color = Color(0xFFC7B9FF), fontSize = 10.sp, letterSpacing = 1.sp)
@@ -370,12 +469,46 @@ private fun StatPill(label: String, value: String, color: Color) {
 }
 
 @Composable
-private fun DaresScreen(modifier: Modifier, savedIndices: List<Int>, onToggleSave: (Int) -> Unit) {
+private fun DaresScreen(
+    modifier: Modifier,
+    prompts: List<GamePrompt>,
+    savedIndices: List<Int>,
+    onToggleSave: (Int) -> Unit,
+    onAddPrompt: (String) -> Unit
+) {
+    var customPromptText by rememberSaveable { mutableStateOf("") }
     Column(modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(18.dp)) {
         Text("THE DECK", color = Color.White, fontSize = 34.sp, fontWeight = FontWeight.Black)
-        Text("Quick hits for the group chat that is real life.", color = MutedText, fontSize = 14.sp)
+        Text("Pick a card or make one that only your crew would think of.", color = MutedText, fontSize = 14.sp)
         Spacer(Modifier.height(16.dp))
-        promptDeck.forEachIndexed { index, prompt ->
+        Card(colors = CardDefaults.cardColors(containerColor = CardInk), shape = RoundedCornerShape(20.dp), modifier = Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(16.dp)) {
+                Text("MAKE IT YOURS", color = VegasLime, fontSize = 11.sp, fontWeight = FontWeight.Black, letterSpacing = 1.4.sp)
+                Spacer(Modifier.height(6.dp))
+                Text("Add a crew-only prompt", color = Color.White, fontSize = 19.sp, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = customPromptText,
+                    onValueChange = { if (it.length <= 220) customPromptText = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    placeholder = { Text("Write a funny, kind challenge…", color = MutedText) },
+                    supportingText = { Text("${customPromptText.length}/220 · Saved on this device", color = MutedText) },
+                    colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White, focusedBorderColor = ElectricPink, unfocusedBorderColor = LineColor, cursorColor = ElectricPink)
+                )
+                Spacer(Modifier.height(8.dp))
+                Button(
+                    onClick = { val cleaned = customPromptText.trim(); if (cleaned.isNotEmpty()) { onAddPrompt(cleaned); customPromptText = "" } },
+                    enabled = customPromptText.isNotBlank(),
+                    modifier = Modifier.fillMaxWidth().height(48.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = ElectricPink)
+                ) { Text("＋ ADD TO OUR DECK", fontWeight = FontWeight.Black) }
+                Spacer(Modifier.height(4.dp))
+                Text("Custom dares are stored locally. Keep it fun, kind, and optional.", color = MutedText, fontSize = 11.sp, lineHeight = 16.sp)
+            }
+        }
+        Spacer(Modifier.height(18.dp))
+        prompts.forEachIndexed { index, prompt ->
             PromptListCard(prompt, saved = index in savedIndices, onSave = { onToggleSave(index) })
             Spacer(Modifier.height(10.dp))
         }
@@ -383,7 +516,7 @@ private fun DaresScreen(modifier: Modifier, savedIndices: List<Int>, onToggleSav
 }
 
 @Composable
-private fun SavedScreen(modifier: Modifier, indices: List<Int>, onRemove: (Int) -> Unit, onPlay: (Int) -> Unit) {
+private fun SavedScreen(modifier: Modifier, prompts: List<GamePrompt>, indices: List<Int>, onRemove: (Int) -> Unit, onPlay: (Int) -> Unit) {
     Column(modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(18.dp)) {
         Text("YOUR SAVED DECK", color = Color.White, fontSize = 31.sp, fontWeight = FontWeight.Black)
         Spacer(Modifier.height(6.dp))
@@ -393,8 +526,8 @@ private fun SavedScreen(modifier: Modifier, indices: List<Int>, onRemove: (Int) 
             EmptyState("♡", "Nothing saved yet", "Save a prompt from the Dares list or during a round.")
         } else {
             indices.toList().forEach { index ->
-                if (index in promptDeck.indices) {
-                    PromptListCard(promptDeck[index], saved = true, onSave = { onRemove(index) }, onPlay = { onPlay(index) })
+                if (index in prompts.indices) {
+                    PromptListCard(prompts[index], saved = true, onSave = { onRemove(index) }, onPlay = { onPlay(index) })
                     Spacer(Modifier.height(10.dp))
                 }
             }
