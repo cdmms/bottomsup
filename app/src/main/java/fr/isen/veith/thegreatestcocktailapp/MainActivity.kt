@@ -2,10 +2,12 @@ package fr.isen.veith.thegreatestcocktailapp
 
 import android.os.Bundle
 import android.content.Context
+import android.content.Intent
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -31,6 +33,7 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -68,6 +71,18 @@ private data class GamePrompt(
     val category: String,
     val tag: String
 )
+
+private data class PlayerStats(
+    val name: String,
+    val role: String,
+    val points: Int = 0,
+    val currentStreak: Int = 0,
+    val bestStreak: Int = 0,
+    val completed: Int = 0,
+    val passed: Int = 0
+)
+
+private val playerRoles = listOf("Hype Captain", "Storyteller", "Truth Seeker", "Wildcard")
 
 private val promptDeck = listOf(
     GamePrompt("Main character", "Give a 10-second acceptance speech for winning ‘Best Night Out’.", "DARE", "QUICK DARE"),
@@ -145,7 +160,7 @@ private val chaosTwists = listOf(
 )
 
 private enum class AppTab(val title: String, val symbol: String) {
-    Play("Play", "🎲"), Dares("Dares", "⚡"), Vegas("Vegas", "✦"), Saved("Saved", "♡")
+    Play("Play", "🎲"), Dares("Dares", "⚡"), Scoreboard("Scores", "🏆"), Saved("Saved", "♡"), Settings("Settings", "⚙")
 }
 
 class MainActivity : ComponentActivity() {
@@ -169,11 +184,38 @@ private fun BottomsUpApp() {
     var promptIndex by rememberSaveable { mutableIntStateOf(0) }
     var completedCount by rememberSaveable { mutableIntStateOf(0) }
     var passedCount by rememberSaveable { mutableIntStateOf(0) }
+    var sessionEnded by rememberSaveable { mutableStateOf(false) }
     var playerInput by rememberSaveable { mutableStateOf("") }
-    val players = remember { mutableStateListOf("You", "Friend") }
-    val savedPromptIndices = remember { mutableStateListOf<Int>() }
     val context = LocalContext.current
     val gamePreferences = remember(context) { context.getSharedPreferences("bottomsup_game", Context.MODE_PRIVATE) }
+    var chaosEnabled by rememberSaveable { mutableStateOf(gamePreferences.getBoolean("chaos_enabled", true)) }
+    var avoidRepeats by rememberSaveable { mutableStateOf(gamePreferences.getBoolean("avoid_repeats", true)) }
+    var roleBonusesEnabled by rememberSaveable { mutableStateOf(gamePreferences.getBoolean("role_bonuses", true)) }
+    var sessionLimit by rememberSaveable { mutableIntStateOf(gamePreferences.getInt("session_limit", 0)) }
+    val players = remember(gamePreferences) {
+        mutableStateListOf<PlayerStats>().apply {
+            val savedCrew = gamePreferences.getString("saved_crew", null)
+            if (!savedCrew.isNullOrBlank()) {
+                try {
+                    val crewJson = org.json.JSONArray(savedCrew)
+                    for (index in 0 until crewJson.length()) {
+                        val item = crewJson.getJSONObject(index)
+                        val name = item.optString("name").trim()
+                        val savedRole = item.optString("role", playerRoles[index % playerRoles.size])
+                        if (name.isNotEmpty() && size < 12 && none { it.name.equals(name, ignoreCase = true) }) {
+                            add(PlayerStats(name, savedRole.takeIf { it in playerRoles } ?: playerRoles[index % playerRoles.size]))
+                        }
+                    }
+                } catch (_: Exception) { clear() }
+            }
+            if (isEmpty()) {
+                add(PlayerStats("You", "Hype Captain"))
+                add(PlayerStats("Friend", "Storyteller"))
+            }
+        }
+    }
+    val savedPromptIndices = remember { mutableStateListOf<Int>() }
+    val drawnPrompts = remember { mutableStateListOf<String>() }
     val customPrompts = remember(gamePreferences) {
         mutableStateListOf<GamePrompt>().apply {
             gamePreferences.getStringSet("custom_prompts", emptySet()).orEmpty().sorted().forEach { savedText ->
@@ -198,14 +240,109 @@ private fun BottomsUpApp() {
             else -> allPrompts
         }.ifEmpty { allPrompts }
     }
+    val currentPlayerIndex = (completedCount + passedCount).mod(players.size.coerceAtLeast(1))
+    val currentPlayer = players.getOrNull(currentPlayerIndex) ?: PlayerStats("You", "Hype Captain")
     val currentPrompt = allPrompts.firstOrNull { it.prompt == selectedPromptText }
         ?: filteredPrompts[promptIndex.mod(filteredPrompts.size)]
 
     fun pickNext() {
         selectedPromptText = null
-        promptIndex = if (filteredPrompts.size > 1) {
+        val currentIndex = promptIndex.mod(filteredPrompts.size)
+        val nextIndex = if (avoidRepeats) {
+            var eligible = filteredPrompts.indices.filter { filteredPrompts[it].prompt !in drawnPrompts }
+            if (eligible.isEmpty()) {
+                drawnPrompts.clear()
+                eligible = filteredPrompts.indices.toList()
+            }
+            val withoutCurrent = eligible.filter { it != currentIndex }
+            (withoutCurrent.ifEmpty { eligible }).random()
+        } else if (filteredPrompts.size > 1) {
             (promptIndex + Random.nextInt(1, filteredPrompts.size)) % filteredPrompts.size
         } else 0
+        promptIndex = nextIndex
+        val chosenPrompt = filteredPrompts[promptIndex].prompt
+        if (avoidRepeats && chosenPrompt !in drawnPrompts) drawnPrompts.add(chosenPrompt)
+    }
+
+    fun persistCrew() {
+        val crewJson = org.json.JSONArray()
+        players.forEach { member ->
+            crewJson.put(org.json.JSONObject().put("name", member.name).put("role", member.role))
+        }
+        gamePreferences.edit().putString("saved_crew", crewJson.toString()).apply()
+    }
+
+    fun resetSession() {
+        players.indices.forEach { index ->
+            players[index] = players[index].copy(points = 0, currentStreak = 0, bestStreak = 0, completed = 0, passed = 0)
+        }
+        completedCount = 0
+        passedCount = 0
+        drawnPrompts.clear()
+        promptIndex = 0
+        selectedPromptText = null
+        sessionEnded = false
+        gameStarted = false
+    }
+
+    fun finishTurn(passed: Boolean) {
+        val index = (completedCount + passedCount).mod(players.size.coerceAtLeast(1))
+        if (index in players.indices) {
+            val player = players[index]
+            if (passed) {
+                players[index] = player.copy(currentStreak = 0, passed = player.passed + 1)
+            } else {
+                val newStreak = player.currentStreak + 1
+                val roleBonus = roleBonusesEnabled && when (player.role) {
+                    "Hype Captain" -> currentPrompt.category in listOf("DARE", "VEGAS", "VOTE")
+                    "Storyteller" -> currentPrompt.category in listOf("STORY", "WILD", "VEGAS")
+                    "Truth Seeker" -> currentPrompt.category in listOf("TRUTH", "HOTSEAT", "CHOICE", "NEVER")
+                    "Wildcard" -> true
+                    else -> false
+                }
+                val streakBonus = newStreak > 0 && newStreak % 3 == 0
+                val earnedPoints = 1 + (if (roleBonus) 1 else 0) + (if (streakBonus) 1 else 0)
+                players[index] = player.copy(
+                    points = player.points + earnedPoints,
+                    currentStreak = newStreak,
+                    bestStreak = maxOf(player.bestStreak, newStreak),
+                    completed = player.completed + 1
+                )
+            }
+        }
+        if (passed) passedCount++ else completedCount++
+        pickNext()
+        if (sessionLimit > 0 && completedCount + passedCount >= sessionLimit) {
+            gameStarted = false
+            sessionEnded = true
+            selectedTab = AppTab.Scoreboard
+        }
+    }
+
+    fun shareRecap() {
+        val totalTurns = completedCount + passedCount
+        val leader = players.sortedWith(compareByDescending<PlayerStats> { it.points }.thenByDescending { it.bestStreak }).firstOrNull()
+        val streakLeader = players.maxByOrNull { it.bestStreak }
+        val recap = buildString {
+            appendLine("🎰 BOTTOMSUP — TONIGHT'S RECAP")
+            appendLine("Mode: $selectedMode")
+            appendLine("Turns: $totalTurns • Completed: $completedCount • Passed: $passedCount")
+            if (totalTurns > 0 && leader != null) appendLine("MVP: ${leader.name} — ${leader.points} points")
+            if (streakLeader != null && streakLeader.bestStreak > 0) appendLine("Longest streak: ${streakLeader.name} — ${streakLeader.bestStreak}")
+            appendLine()
+            appendLine("THE CREW")
+            players.sortedByDescending { it.points }.forEach { member ->
+                appendLine("${member.name} · ${member.role} · ${member.points} pts · ${member.completed} completed · best streak ${member.bestStreak}")
+            }
+            appendLine()
+            append("Your game, your rules. Passing is always okay. #BottomsUp")
+        }
+        val shareIntent = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_SUBJECT, "BottomsUp — Tonight's recap")
+            putExtra(Intent.EXTRA_TEXT, recap)
+        }
+        context.startActivity(Intent.createChooser(shareIntent, "Share your BottomsUp recap"))
     }
 
     Scaffold(
@@ -223,8 +360,8 @@ private fun BottomsUpApp() {
                         }
                         Text("VEGAS PARTY GAME", fontSize = 10.sp, letterSpacing = 2.sp, color = MutedText)
                     }
-                    Box(Modifier.size(44.dp).clip(RoundedCornerShape(15.dp)).background(CardInk), contentAlignment = Alignment.Center) {
-                        Text("↗", color = VegasLime, fontSize = 27.sp, fontWeight = FontWeight.Black)
+                    Box(Modifier.size(44.dp).clip(RoundedCornerShape(15.dp)).background(CardInk).clickable { selectedTab = AppTab.Settings }, contentAlignment = Alignment.Center) {
+                        Text("⚙", color = VegasLime, fontSize = 24.sp, fontWeight = FontWeight.Black)
                     }
                 }
             },
@@ -252,17 +389,18 @@ private fun BottomsUpApp() {
                 AppTab.Play -> PlayScreen(
                     modifier = Modifier.padding(innerPadding),
                     selectedMode = selectedMode,
-                    onModeChange = { selectedMode = it; selectedPromptText = null; promptIndex = 0; gameStarted = false },
+                    onModeChange = { selectedMode = it; selectedPromptText = null; promptIndex = 0; drawnPrompts.clear(); gameStarted = false },
                     gameStarted = gameStarted,
-                    onStart = { gameStarted = true; pickNext() },
+                    onStart = { if (sessionEnded) resetSession(); gameStarted = true; sessionEnded = false; pickNext() },
                     prompt = currentPrompt,
-                    player = players[(completedCount + passedCount).mod(players.size.coerceAtLeast(1))],
+                    player = currentPlayer,
                     completedCount = completedCount,
                     passedCount = passedCount,
-                    onDone = { completedCount++; pickNext() },
+                    chaosEnabled = chaosEnabled,
+                    onDone = { finishTurn(passed = false) },
                     onSwap = { pickNext() },
-                    onPass = { passedCount++; pickNext() },
-                    onExit = { gameStarted = false },
+                    onPass = { finishTurn(passed = true) },
+                    onExit = { gameStarted = false; sessionEnded = true; selectedTab = AppTab.Scoreboard },
                     onSave = {
                         val globalIndex = allPrompts.indexOf(currentPrompt)
                         if (globalIndex !in savedPromptIndices) savedPromptIndices.add(globalIndex)
@@ -273,7 +411,10 @@ private fun BottomsUpApp() {
                     onPlayerInput = { playerInput = it },
                     onAddPlayer = {
                         val cleaned = playerInput.trim()
-                        if (cleaned.isNotEmpty() && cleaned !in players && players.size < 12) players.add(cleaned)
+                        if (cleaned.isNotEmpty() && players.none { it.name.equals(cleaned, ignoreCase = true) } && players.size < 12) {
+                            players.add(PlayerStats(cleaned, playerRoles[players.size % playerRoles.size]))
+                            persistCrew()
+                        }
                         playerInput = ""
                     }
                 )
@@ -290,7 +431,33 @@ private fun BottomsUpApp() {
                         }
                     }
                 )
-                AppTab.Vegas -> VegasScreen(Modifier.padding(innerPadding), onPlayVegas = { selectedMode = "Vegas Deck"; gameStarted = false; selectedTab = AppTab.Play })
+                AppTab.Scoreboard -> ScoreboardScreen(
+                    modifier = Modifier.padding(innerPadding),
+                    players = players,
+                    completedCount = completedCount,
+                    passedCount = passedCount,
+                    selectedMode = selectedMode,
+                    sessionEnded = sessionEnded,
+                    onShare = { shareRecap() },
+                    onReplay = { resetSession(); selectedTab = AppTab.Play },
+                    onEndSession = { gameStarted = false; sessionEnded = true }
+                )
+                AppTab.Settings -> SettingsScreen(
+                    modifier = Modifier.padding(innerPadding),
+                    chaosEnabled = chaosEnabled,
+                    onChaosEnabled = { chaosEnabled = it; gamePreferences.edit().putBoolean("chaos_enabled", it).apply() },
+                    avoidRepeats = avoidRepeats,
+                    onAvoidRepeats = { avoidRepeats = it; gamePreferences.edit().putBoolean("avoid_repeats", it).apply(); drawnPrompts.clear() },
+                    roleBonusesEnabled = roleBonusesEnabled,
+                    onRoleBonusesEnabled = { roleBonusesEnabled = it; gamePreferences.edit().putBoolean("role_bonuses", it).apply() },
+                    sessionLimit = sessionLimit,
+                    onSessionLimit = { sessionLimit = it; gamePreferences.edit().putInt("session_limit", it).apply() },
+                    onShuffleRoles = {
+                        val shuffled = players.map { it.role }.shuffled()
+                        players.indices.forEach { index -> players[index] = players[index].copy(role = shuffled[index]) }
+                        persistCrew()
+                    }
+                )
                 AppTab.Saved -> SavedScreen(
                     modifier = Modifier.padding(innerPadding),
                     prompts = allPrompts,
@@ -328,9 +495,10 @@ private fun PlayScreen(
     gameStarted: Boolean,
     onStart: () -> Unit,
     prompt: GamePrompt,
-    player: String,
+    player: PlayerStats,
     completedCount: Int,
     passedCount: Int,
+    chaosEnabled: Boolean,
     onDone: () -> Unit,
     onSwap: () -> Unit,
     onPass: () -> Unit,
@@ -397,13 +565,18 @@ private fun PlayScreen(
             }
             Spacer(Modifier.height(10.dp))
             Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                players.forEach { name ->
-                    Surface(color = CardInk, shape = CircleShape) { Text(name, Modifier.padding(horizontal = 13.dp, vertical = 8.dp), fontSize = 12.sp, color = Color.White) }
+                players.forEach { member ->
+                    Surface(color = CardInk, shape = CircleShape) {
+                        Text("${member.name} · ${member.role}", Modifier.padding(horizontal = 13.dp, vertical = 8.dp), fontSize = 12.sp, color = Color.White)
+                    }
                 }
             }
         } else {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Text("UP NEXT: ${player.uppercase()}", color = VegasLime, fontSize = 11.sp, letterSpacing = 1.5.sp, fontWeight = FontWeight.Bold)
+                Column {
+                    Text("UP NEXT: ${player.name.uppercase()}", color = VegasLime, fontSize = 11.sp, letterSpacing = 1.2.sp, fontWeight = FontWeight.Bold)
+                    Text("${player.role.uppercase()}  ·  🔥 ${player.currentStreak} STREAK", color = MutedText, fontSize = 10.sp, letterSpacing = 0.6.sp)
+                }
                 TextButton(onClick = onExit) { Text("END GAME", color = MutedText, fontSize = 11.sp) }
             }
             Spacer(Modifier.height(8.dp))
@@ -418,7 +591,7 @@ private fun PlayScreen(
                     Text(prompt.title, color = Color.White, fontSize = 25.sp, fontWeight = FontWeight.Black, textAlign = TextAlign.Center)
                     Spacer(Modifier.height(12.dp))
                     Text(prompt.prompt, color = Color(0xFFF0EDF9), fontSize = 19.sp, lineHeight = 27.sp, textAlign = TextAlign.Center)
-                    if ((completedCount + passedCount) > 0 && (completedCount + passedCount) % 4 == 0) {
+                    if (chaosEnabled && (completedCount + passedCount) > 0 && (completedCount + passedCount) % 4 == 0) {
                         Spacer(Modifier.height(14.dp))
                         Card(
                             colors = CardDefaults.cardColors(containerColor = Ultraviolet.copy(alpha = 0.20f)),
@@ -551,6 +724,160 @@ private fun PromptListCard(prompt: GamePrompt, saved: Boolean, onSave: () -> Uni
                 TextButton(onClick = onPlay) { Text("PLAY THIS TYPE  →", color = VegasLime) }
             }
         }
+    }
+}
+
+@Composable
+private fun ScoreboardScreen(
+    modifier: Modifier,
+    players: List<PlayerStats>,
+    completedCount: Int,
+    passedCount: Int,
+    selectedMode: String,
+    sessionEnded: Boolean,
+    onShare: () -> Unit,
+    onReplay: () -> Unit,
+    onEndSession: () -> Unit
+) {
+    val rankedPlayers = players.sortedWith(compareByDescending<PlayerStats> { it.points }.thenByDescending { it.bestStreak })
+    val leader = rankedPlayers.firstOrNull()
+    val streakLeader = players.maxByOrNull { it.bestStreak }
+    val totalTurns = completedCount + passedCount
+    Column(modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(18.dp)) {
+        Text(if (sessionEnded) "TONIGHT'S RECAP" else "PARTY SCOREBOARD", color = Color.White, fontSize = 31.sp, fontWeight = FontWeight.Black)
+        Text("Points reward completing cards, streaks, and role bonuses—not drinking.", color = MutedText, fontSize = 13.sp, lineHeight = 19.sp)
+        Spacer(Modifier.height(16.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+            StatPill("TURNS", totalTurns.toString(), VegasLime)
+            StatPill("DONE", completedCount.toString(), ElectricPink)
+            StatPill("PASSED", passedCount.toString(), MutedText)
+        }
+        Spacer(Modifier.height(18.dp))
+        if (sessionEnded) {
+            Card(colors = CardDefaults.cardColors(containerColor = Ultraviolet.copy(alpha = 0.18f)), shape = RoundedCornerShape(22.dp), modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(18.dp)) {
+                    Text("🎰 THE NIGHT IN ONE CARD", color = VegasLime, fontSize = 11.sp, fontWeight = FontWeight.Black, letterSpacing = 1.3.sp)
+                    Spacer(Modifier.height(10.dp))
+                    Text("$selectedMode", color = Color.White, fontSize = 23.sp, fontWeight = FontWeight.Black)
+                    Spacer(Modifier.height(8.dp))
+                    Text(if (totalTurns == 0) "Your next legendary session starts here." else "${completedCount} cards completed across ${players.size} players. ${passedCount} passes respected. Every player helped write the story.", color = MutedText, fontSize = 14.sp, lineHeight = 21.sp)
+                    if (totalTurns > 0 && leader != null) {
+                        Spacer(Modifier.height(12.dp))
+                        Text("🏆 MVP  ${leader.name}  ·  ${leader.points} points", color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                    }
+                    if (streakLeader != null && streakLeader.bestStreak > 0) {
+                        Spacer(Modifier.height(5.dp))
+                        Text("🔥 LONGEST STREAK  ${streakLeader.name}  ·  ${streakLeader.bestStreak}", color = Color.White, fontSize = 13.sp)
+                    }
+                    Spacer(Modifier.height(16.dp))
+                    Button(onClick = onShare, modifier = Modifier.fillMaxWidth().height(50.dp), shape = RoundedCornerShape(14.dp), colors = ButtonDefaults.buttonColors(containerColor = ElectricPink)) {
+                        Text("SHARE THE RECAP  ↗", fontWeight = FontWeight.Black)
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    Button(onClick = onReplay, modifier = Modifier.fillMaxWidth().height(48.dp), shape = RoundedCornerShape(14.dp), colors = ButtonDefaults.buttonColors(containerColor = Ultraviolet)) {
+                        Text("REPLAY WITH THIS CREW  ↻", fontWeight = FontWeight.Black)
+                    }
+                }
+            }
+        } else if (totalTurns > 0) {
+            Button(onClick = onEndSession, modifier = Modifier.fillMaxWidth().height(48.dp), shape = RoundedCornerShape(14.dp), colors = ButtonDefaults.buttonColors(containerColor = ElectricPink)) {
+                Text("END SESSION & BUILD RECAP", fontWeight = FontWeight.Black)
+            }
+            Spacer(Modifier.height(12.dp))
+        }
+        Text("${if (sessionEnded) "FINAL STANDINGS" else "LIVE STANDINGS"}", color = MutedText, fontSize = 11.sp, letterSpacing = 1.4.sp, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(9.dp))
+        rankedPlayers.forEachIndexed { index, player ->
+            Card(colors = CardDefaults.cardColors(containerColor = CardInk), shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(15.dp)) {
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                        Column(Modifier.weight(1f)) {
+                            Text((if (index == 0 && player.points > 0) "🏆 " else "${index + 1}. ") + player.name, color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                            Spacer(Modifier.height(3.dp))
+                            Text(player.role.uppercase(), color = ElectricPink, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+                        }
+                        Column(horizontalAlignment = Alignment.End) {
+                            Text("${player.points} PTS", color = VegasLime, fontSize = 20.sp, fontWeight = FontWeight.Black)
+                            Text("🔥 ${player.currentStreak} now · ${player.bestStreak} best", color = MutedText, fontSize = 10.sp)
+                        }
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    Text("${player.completed} completed  ·  ${player.passed} passed", color = MutedText, fontSize = 12.sp)
+                }
+            }
+            Spacer(Modifier.height(9.dp))
+        }
+        Spacer(Modifier.height(10.dp))
+        Text("Points: +1 for a completed card, +1 for a matching role bonus, and +1 each time a player's streak reaches another three. Passing is always allowed.", color = MutedText, fontSize = 11.sp, lineHeight = 16.sp)
+    }
+}
+
+@Composable
+private fun SettingsScreen(
+    modifier: Modifier,
+    chaosEnabled: Boolean,
+    onChaosEnabled: (Boolean) -> Unit,
+    avoidRepeats: Boolean,
+    onAvoidRepeats: (Boolean) -> Unit,
+    roleBonusesEnabled: Boolean,
+    onRoleBonusesEnabled: (Boolean) -> Unit,
+    sessionLimit: Int,
+    onSessionLimit: (Int) -> Unit,
+    onShuffleRoles: () -> Unit
+) {
+    Column(modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(18.dp)) {
+        Text("SETTINGS", color = Color.White, fontSize = 34.sp, fontWeight = FontWeight.Black)
+        Text("Tune the night to your crew. Changes save on this device.", color = MutedText, fontSize = 14.sp, lineHeight = 20.sp)
+        Spacer(Modifier.height(18.dp))
+        Card(colors = CardDefaults.cardColors(containerColor = CardInk), shape = RoundedCornerShape(20.dp), modifier = Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(16.dp)) {
+                Text("GAMEPLAY", color = ElectricPink, fontSize = 11.sp, fontWeight = FontWeight.Black, letterSpacing = 1.3.sp)
+                Spacer(Modifier.height(8.dp))
+                SettingsToggleRow("Chaos Rounds", "A surprise twist appears every four turns.", chaosEnabled, onChaosEnabled)
+                SettingsToggleRow("Avoid repeats", "Use the deck before repeating a card, when possible.", avoidRepeats, onAvoidRepeats)
+                SettingsToggleRow("Role bonuses", "Matching a role earns a bonus point.", roleBonusesEnabled, onRoleBonusesEnabled)
+            }
+        }
+        Spacer(Modifier.height(14.dp))
+        Card(colors = CardDefaults.cardColors(containerColor = CardInk), shape = RoundedCornerShape(20.dp), modifier = Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(16.dp)) {
+                Text("SESSION LENGTH", color = ElectricPink, fontSize = 11.sp, fontWeight = FontWeight.Black, letterSpacing = 1.3.sp)
+                Spacer(Modifier.height(6.dp))
+                Text("Automatically end the session and open the recap after this many turns.", color = MutedText, fontSize = 13.sp, lineHeight = 18.sp)
+                Spacer(Modifier.height(12.dp))
+                Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf(0 to "Endless", 10 to "10 turns", 20 to "20 turns", 30 to "30 turns").forEach { (value, label) ->
+                        FilterChip(selected = sessionLimit == value, onClick = { onSessionLimit(value) }, label = { Text(label) })
+                    }
+                }
+            }
+        }
+        Spacer(Modifier.height(14.dp))
+        Card(colors = CardDefaults.cardColors(containerColor = CardInk), shape = RoundedCornerShape(20.dp), modifier = Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(16.dp)) {
+                Text("PLAYER ROLES", color = ElectricPink, fontSize = 11.sp, fontWeight = FontWeight.Black, letterSpacing = 1.3.sp)
+                Spacer(Modifier.height(6.dp))
+                Text("Hype Captain, Storyteller, Truth Seeker, and Wildcard each earn bonus points for different types of cards.", color = MutedText, fontSize = 13.sp, lineHeight = 19.sp)
+                Spacer(Modifier.height(12.dp))
+                Button(onClick = onShuffleRoles, modifier = Modifier.fillMaxWidth().height(48.dp), shape = RoundedCornerShape(14.dp), colors = ButtonDefaults.buttonColors(containerColor = Ultraviolet)) {
+                    Text("SHUFFLE ROLES FOR THE CREW  ↻", fontWeight = FontWeight.Black)
+                }
+            }
+        }
+        Spacer(Modifier.height(14.dp))
+        Text("No account or internet connection is needed. The recap uses Android's share sheet, so your group can send it to a chat or save it elsewhere.", color = MutedText, fontSize = 12.sp, lineHeight = 18.sp)
+    }
+}
+
+@Composable
+private fun SettingsToggleRow(title: String, subtitle: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+    Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Column(Modifier.weight(1f)) {
+            Text(title, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+            Spacer(Modifier.height(3.dp))
+            Text(subtitle, color = MutedText, fontSize = 12.sp, lineHeight = 17.sp)
+        }
+        Switch(checked = checked, onCheckedChange = onCheckedChange)
     }
 }
 
