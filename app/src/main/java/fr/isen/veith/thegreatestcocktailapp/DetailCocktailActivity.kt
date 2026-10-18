@@ -7,38 +7,30 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.runtime.remember
+import androidx.compose.material3.Text
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import fr.isen.veith.thegreatestcocktailapp.screens.DetailCocktailScreen
-
 import fr.isen.veith.thegreatestcocktailapp.ui.theme.TheGreatestCocktailAppTheme
 
 class DetailCocktailActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-
         val drinkID = intent.getStringExtra("drinkID") ?: ""
 
         enableEdgeToEdge()
         setContent {
             TheGreatestCocktailAppTheme {
-
-
-                val snackbarHostState = remember { SnackbarHostState() }
-
                 Scaffold(
                     modifier = Modifier.fillMaxSize(),
                     topBar = {
-                        TopAppBar(
-                            snackbarHostState = snackbarHostState,
-                            titleResId = R.string.title_activity_detail_cocktail,
-                            drinkID = drinkID
+                        Text(
+                            text = getString(R.string.title_activity_detail_cocktail),
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp)
                         )
                     }
                 ) { innerPadding ->
-
                     DetailCocktailScreen(Modifier.padding(innerPadding), drinkID)
                 }
             }
