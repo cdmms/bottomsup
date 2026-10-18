@@ -1,66 +1,29 @@
-# The Greatest CocktailApp
+# BottomsUp 🎲🍸
 
-A modern Android application for exploring, searching, and managing cocktail recipes. This project utilizes **TheCocktailDB API** to provide real-time drink data and instructions.
+**Spin. Dare. Own the night.**
 
-## Core Functionality
+BottomsUp is a Vegas-inspired party and dare game for adults. The app starts with quick party prompts, Truth or Dare, a Vegas-themed deck, Wild Cards, and Most Likely To. Players can save prompts, swap a challenge, or pass at any time. Drink rules are optional; water breaks and no-alcohol play are supported.
 
-* **Randomized Discovery**: Generates a random cocktail on the landing screen.
-* **Categorized Exploration**: Browse full lists of drinks based on official categories.
-* **Dual Search Engine**: 
-    * Search by drink name for specific recipes.
-    * Search by ingredient to find cocktails based on available stock.
-* **Local Persistence**: A favorites system powered by `SharedPreferences` to save specific cocktails.
-* **System Integration**: Native Android Share Intent to export recipes as plain text.
+## Features in this starter build
 
----
+- Game-first home screen with BottomsUp colors and branding
+- Quick Dare, Sip or Dare, Truth or Dare, Vegas Deck, Most Likely To, and Wild Card modes
+- Local player list with round rotation
+- Done, Swap, Pass, and save-prompt actions
+- Dares and Saved tabs
+- Secondary Vegas-themed screen for future venue/nightlife features
+- No account or network permission required for the core game
 
-## Technical Stack
+## Build APK with GitHub Actions (recommended)
 
-| Component | Library / Framework |
-| :--- | :--- |
-| **Language** | Kotlin 2.1+ |
-| **UI Framework** | Jetpack Compose (Material 3) |
-| **Networking** | Retrofit 2 / OkHttp |
-| **JSON Parsing** | GSON |
-| **Image Loading** | Coil 3 |
-| **Navigation** | Jetpack Navigation Compose |
+Push this repository to GitHub and open the **Actions** tab. The `Android APK Build` workflow compiles the debug APK on a GitHub-hosted runner and uploads `bottomsup-debug-apk` as a downloadable artifact. You do not need to install Android SDK or run a build command in Termux.
 
----
+The workflow invokes the repository's Gradle wrapper inside GitHub Actions because this Kotlin/Android starter is a Gradle project. Gradle is not run in Termux.
 
-## UI/UX Design
+## License / attribution
 
-The application follows a custom **Cyber-Purple** design language:
-* **Theme**: Deep dark backgrounds (`#0F0F0F`) with high-contrast purple accents (`#9D4EDD`).
-* **Glassmorphism**: Custom `Card` components with 5% white opacity and subtle borders for a layered frosted-glass effect.
-* **Motion**: 
-    * `AnimatedContent` for smooth transitions between loading states and data.
-    * Staggered list entry animations using `AnimatedVisibility` and vertical slides.
-    * `animateContentSize` for expandable UI elements.
+This project is adapted from [Allowexe/TheGreatestCocktailApp](https://github.com/Allowexe/TheGreatestCocktailApp), which is distributed under the MIT License. The original `LICENSE` file is retained. BottomsUp branding and the gameplay/home-screen rewrite are changes in this fork.
 
----
+## Responsible play
 
-## Development Setup
-
-### Prerequisites
-* Android Studio Ladybug or later.
-* JDK 17+.
-* Active Internet connection for API calls.
-
-### Build Instructions
-1. Clone the repository.
-2. Open the project in Android Studio.
-3. Sync Gradle files.
-4. Run the `app` configuration on an emulator or physical device.
-
----
-
-## API Reference
-
-This application consumes the public [TheCocktailDB API](https://www.thecocktaildb.com/api.php). 
-* **Authentication**: None (Developer Test Key "1").
-* **Endpoints**: `random.php`, `list.php`, `search.php`, `filter.php`, `lookup.php`.
-
----
-
-## License
-Distributed under the MIT License. See `LICENSE` for more information.
+For adults 21+ in the United States. Challenges are optional, passing is always allowed, and no challenge requires alcohol. Never drink and drive.

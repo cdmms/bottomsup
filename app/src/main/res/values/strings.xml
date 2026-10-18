@@ -1,12 +1,12 @@
 <resources>
-    <string name="app_name">TheGreatestCocktailApp</string>
-    <string name="title_activity_drinks">DrinksActivity</string>
-    <string name="title_activity_detail_cocktail">DetailCocktailActivity</string>
-    <string name="nav_title_random">Today</string>
-    <string name="nav_title_category">Categories</string>
-    <string name="nav_title_fav">Favorites</string>
-    <string name="snackbar_added">Added to favorites</string>
-    <string name="snackbar_removed">Removed from favorites</string>
-    <string name="detail_ingredients_title">Ingredients</string>
-    <string name="nav_title_search">Search</string>
+    <string name="app_name">BottomsUp</string>
+    <string name="title_activity_drinks">BottomsUp Deck</string>
+    <string name="title_activity_detail_cocktail">BottomsUp</string>
+    <string name="nav_title_random">Play</string>
+    <string name="nav_title_category">Dares</string>
+    <string name="nav_title_fav">Saved</string>
+    <string name="snackbar_added">Saved to your deck</string>
+    <string name="snackbar_removed">Removed from saved</string>
+    <string name="detail_ingredients_title">Your challenge</string>
+    <string name="nav_title_search">Vegas</string>
 </resources>

@@ -1,44 +1,99 @@
 package fr.isen.veith.thegreatestcocktailapp
 
-import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
-import androidx.navigation.compose.rememberNavController
-import fr.isen.veith.thegreatestcocktailapp.screens.CategoriesScreen
-import fr.isen.veith.thegreatestcocktailapp.screens.DetailCocktailScreen
-import fr.isen.veith.thegreatestcocktailapp.screens.FavoriteScreen
-import fr.isen.veith.thegreatestcocktailapp.screens.SearchScreen
+import androidx.compose.ui.unit.sp
 import fr.isen.veith.thegreatestcocktailapp.ui.theme.TheGreatestCocktailAppTheme
-import kotlinx.coroutines.launch
+import kotlin.random.Random
 
-val PurpleAccent = Color(0xFF9D4EDD)
-val DarkBackground = Color(0xFF0F0F0F)
+private val NightInk = Color(0xFF080813)
+private val CardInk = Color(0xFF151421)
+private val ElectricPink = Color(0xFFFF168B)
+private val Ultraviolet = Color(0xFF7B61FF)
+private val VegasLime = Color(0xFFB8FF3B)
+private val MutedText = Color(0xFFB9B6C9)
+private val LineColor = Color(0xFF363348)
 
-enum class NavigationItem(
-    val titleID: Int,
-    val icon: ImageVector,
-    val route: String
-) {
-    Home(R.string.nav_title_random, Icons.Default.Home, "home"),
-    List(R.string.nav_title_category, Icons.Default.Menu, "list"),
-    Search(R.string.nav_title_search, Icons.Default.Search, "search"),
-    Fav(R.string.nav_title_fav, Icons.Default.Favorite, "fav")
+private data class GamePrompt(
+    val title: String,
+    val prompt: String,
+    val category: String,
+    val tag: String
+)
+
+private val promptDeck = listOf(
+    GamePrompt("Main character", "Give a 10-second acceptance speech for winning ‘Best Night Out’.", "DARE", "QUICK DARE"),
+    GamePrompt("The toast", "Make a dramatic toast to the group using your best movie-trailer voice.", "DARE", "QUICK DARE"),
+    GamePrompt("Vegas headline", "Invent a ridiculous headline describing tonight’s adventure.", "VEGAS", "VEGAS DECK"),
+    GamePrompt("Sip or dare", "Take one small sip of your beverage, or choose water or a no-alcohol alternative.", "DRINK", "SIP OR DARE"),
+    GamePrompt("Cheers remix", "Make up a two-line cheers rhyme. A sip is optional; any beverage counts.", "DRINK", "SIP OR DARE"),
+    GamePrompt("Hydration flex", "Lead a dramatic water toast. Invite the group, but nobody has to join.", "DRINK", "SIP OR DARE"),
+    GamePrompt("No-pressure pick", "Choose one: a small sip of your beverage, a water break, or a goofy question.", "DRINK", "SIP OR DARE"),
+    GamePrompt("Truth time", "What is your most harmless but hilariously unpopular opinion?", "TRUTH", "TRUTH OR DARE"),
+    GamePrompt("Red carpet", "Walk an imaginary red carpet and pose for three different paparazzi photos.", "DARE", "VEGAS DECK"),
+    GamePrompt("Most likely to…", "Point to who is most likely to become friends with a stranger in a queue.", "VOTE", "MOST LIKELY TO"),
+    GamePrompt("Vegas alter ego", "Give yourself a Vegas nickname and explain its origin.", "VEGAS", "VEGAS DECK"),
+    GamePrompt("The impression", "Do a friendly impression of someone famous; the group guesses who it is.", "DARE", "QUICK DARE"),
+    GamePrompt("Plot twist", "Tell a two-sentence story about tonight. The group adds one unexpected twist.", "WILD", "WILD CARD"),
+    GamePrompt("Truth time", "What song would play when you make a grand entrance?", "TRUTH", "TRUTH OR DARE"),
+    GamePrompt("Cheers or choice", "Choose a cheers, a water break, or a no-alcohol alternative—and give it a name.", "WILD", "WILD CARD"),
+    GamePrompt("The hype person", "Give the player on your left an over-the-top, 5-second introduction.", "DARE", "QUICK DARE"),
+    GamePrompt("Most likely to…", "Vote for who would be the best tour guide for a chaotic group trip.", "VOTE", "MOST LIKELY TO"),
+    GamePrompt("Photo caption", "Invent a caption for the group’s imaginary album cover.", "VEGAS", "VEGAS DECK"),
+    GamePrompt("Plot twist", "Swap roles with another willing player and introduce yourself as them—in a kind way.", "WILD", "WILD CARD"),
+    GamePrompt("Truth time", "What small thing instantly makes a night out better for you?", "TRUTH", "TRUTH OR DARE"),
+    GamePrompt("Dance break", "Make up a signature celebration move. Everyone who wants to can copy it.", "DARE", "QUICK DARE"),
+    GamePrompt("The review", "Rate this imaginary party from one to ten, then deliver a dramatic review.", "VEGAS", "VEGAS DECK")
+)
+
+private enum class AppTab(val title: String, val symbol: String) {
+    Play("Play", "🎲"), Dares("Dares", "⚡"), Vegas("Vegas", "✦"), Saved("Saved", "♡")
 }
 
 class MainActivity : ComponentActivity() {
@@ -47,171 +102,366 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             TheGreatestCocktailAppTheme {
-                val context = LocalContext.current
-                val snackBarHostState = remember { SnackbarHostState() }
-                val navController = rememberNavController()
-                val startNavigationItem = NavigationItem.Home
-                val currentNavigationItem = remember { mutableStateOf(startNavigationItem) }
-
-
-                val currentDrinkId = remember { mutableStateOf<String?>(null) }
-                val currentDrinkName = remember { mutableStateOf("") }
-                val currentDrinkInstructions = remember { mutableStateOf("") }
-                val refreshTrigger = remember { mutableStateOf(0) }
-
-
-                val onShareAction = {
-                    val sendIntent: Intent = Intent().apply {
-                        action = Intent.ACTION_SEND
-                        putExtra(Intent.EXTRA_TEXT, "Discover this cocktail : ${currentDrinkName.value} !\n\nRecipe :\n${currentDrinkInstructions.value}")
-                        type = "text/plain"
-                    }
-                    val shareIntent = Intent.createChooser(sendIntent, null)
-                    context.startActivity(shareIntent)
-                }
-
-                Scaffold(
-                    modifier = Modifier.fillMaxSize(),
-                    containerColor = DarkBackground,
-                    topBar = {
-                        TopAppBar(
-                            snackbarHostState = snackBarHostState,
-                            titleResId = currentNavigationItem.value.titleID,
-                            drinkID = if (currentNavigationItem.value == NavigationItem.Home) currentDrinkId.value else null,
-                            onReload = if (currentNavigationItem.value == NavigationItem.Home) {
-                                { refreshTrigger.value++ }
-                            } else null,
-
-                            onShare = if (currentNavigationItem.value == NavigationItem.Home && currentDrinkId.value != null) {
-                                onShareAction
-                            } else null
-                        )
-                    },
-                    snackbarHost = { SnackbarHost(snackBarHostState) },
-                    bottomBar = {
-                        NavigationBar(containerColor = DarkBackground, tonalElevation = 8.dp) {
-                            NavigationItem.entries.forEach { navigationItem ->
-                                NavigationBarItem(
-                                    selected = currentNavigationItem.value == navigationItem,
-                                    onClick = {
-                                        navController.navigate(navigationItem.route) {
-                                            popUpTo(navController.graph.startDestinationId)
-                                            launchSingleTop = true
-                                        }
-                                        currentNavigationItem.value = navigationItem
-                                        if (navigationItem != NavigationItem.Home) currentDrinkId.value = null
-                                    },
-                                    label = { Text(stringResource(navigationItem.titleID)) },
-                                    icon = { Icon(navigationItem.icon, contentDescription = null) },
-                                    colors = NavigationBarItemDefaults.colors(
-                                        selectedIconColor = PurpleAccent,
-                                        selectedTextColor = PurpleAccent,
-                                        indicatorColor = PurpleAccent.copy(alpha = 0.2f),
-                                        unselectedIconColor = Color.Gray,
-                                        unselectedTextColor = Color.Gray
-                                    )
-                                )
-                            }
-                        }
-                    }
-                ) { innerPadding ->
-                    NavHost(navController = navController, startDestination = startNavigationItem.route) {
-                        composable(NavigationItem.Home.route) {
-                            DetailCocktailScreen(
-                                modifier = Modifier.padding(innerPadding),
-                                refreshTrigger = refreshTrigger.value,
-
-                                onDrinkLoaded = { id, name, instructions ->
-                                    currentDrinkId.value = id
-                                    currentDrinkName.value = name
-                                    currentDrinkInstructions.value = instructions
-                                }
-                            )
-                        }
-                        composable(NavigationItem.List.route) { CategoriesScreen(Modifier.padding(innerPadding)) }
-                        composable(NavigationItem.Search.route) { SearchScreen(Modifier.padding(innerPadding)) }
-                        composable(NavigationItem.Fav.route) { FavoriteScreen(Modifier.padding(innerPadding)) }
-                    }
-                }
+                BottomsUpApp()
             }
         }
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TopAppBar(
-    snackbarHostState: SnackbarHostState,
-    titleResId: Int,
-    drinkID: String? = null,
-    onReload: (() -> Unit)? = null,
-    onShare: (() -> Unit)? = null
-) {
-    CenterAlignedTopAppBar(
-        title = {
-            Text(stringResource(titleResId), color = Color.White, style = MaterialTheme.typography.titleLarge)
-        },
-        colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-            containerColor = DarkBackground,
-            titleContentColor = Color.White
-        ),
-        actions = {
-            if (onReload != null) {
-                IconButton(onClick = onReload) {
-                    Icon(Icons.Default.Refresh, contentDescription = "Reload", tint = Color.White)
-                }
-            }
+private fun BottomsUpApp() {
+    var selectedTab by rememberSaveable { mutableStateOf(AppTab.Play) }
+    var selectedMode by rememberSaveable { mutableStateOf("Quick Dare") }
+    var gameStarted by rememberSaveable { mutableStateOf(false) }
+    var promptIndex by rememberSaveable { mutableIntStateOf(0) }
+    var completedCount by rememberSaveable { mutableIntStateOf(0) }
+    var passedCount by rememberSaveable { mutableIntStateOf(0) }
+    var playerInput by rememberSaveable { mutableStateOf("") }
+    val players = remember { mutableStateListOf("You", "Friend") }
+    val savedPromptIndices = remember { mutableStateListOf<Int>() }
 
-            if (onShare != null) {
-                IconButton(onClick = onShare) {
-                    Icon(Icons.Default.Share, contentDescription = "Share", tint = Color.White)
-                }
-            }
+    val filteredPrompts = remember(selectedMode) {
+        when (selectedMode) {
+            "Truth or Dare" -> promptDeck.filter { it.category == "TRUTH" || it.category == "DARE" }
+            "Sip or Dare" -> promptDeck.filter { it.category == "DRINK" }
+            "Vegas Deck" -> promptDeck.filter { it.tag == "VEGAS DECK" || it.category == "VEGAS" }
+            "Most Likely To" -> promptDeck.filter { it.category == "VOTE" }
+            "Wild Card" -> promptDeck.filter { it.category == "WILD" }
+            else -> promptDeck
+        }.ifEmpty { promptDeck }
+    }
+    val currentPrompt = filteredPrompts[promptIndex.mod(filteredPrompts.size)]
 
-            if (drinkID != null) {
-                val added = stringResource(R.string.snackbar_added)
-                val removed = stringResource(R.string.snackbar_removed)
-                val snackbarScope = rememberCoroutineScope()
-                val context = LocalContext.current
-                val sharedPreferences = SharedPreferencesHelper(context)
-                val drinkList = sharedPreferences.getFavoriteList()
-                val isFav = remember(drinkID) { mutableStateOf(getFavoriteStatusForID(drinkID, drinkList)) }
+    fun pickNext() {
+        promptIndex = if (filteredPrompts.size > 1) {
+            (promptIndex + Random.nextInt(1, filteredPrompts.size)) % filteredPrompts.size
+        } else 0
+    }
 
-                IconToggleButton(
-                    checked = isFav.value,
-                    onCheckedChange = {
-                        isFav.value = !isFav.value
-                        snackbarScope.launch {
-                            snackbarHostState.showSnackbar(if (isFav.value) added else removed)
-                        }
-                        updateFavoriteList(drinkID, isFav.value, sharedPreferences, drinkList)
-                    }
+    Scaffold(
+            containerColor = NightInk,
+            topBar = {
+                Row(
+                    modifier = Modifier.fillMaxWidth().background(NightInk).padding(horizontal = 20.dp, vertical = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Icon(
-                        imageVector = if (isFav.value) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                        contentDescription = "fav",
-                        tint = if (isFav.value) PurpleAccent else Color.White
+                    Column {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("Bottoms", fontSize = 27.sp, fontWeight = FontWeight.Black, color = Color.White)
+                            Text("Up", fontSize = 27.sp, fontWeight = FontWeight.Black, color = ElectricPink)
+                        }
+                        Text("VEGAS PARTY GAME", fontSize = 10.sp, letterSpacing = 2.sp, color = MutedText)
+                    }
+                    Box(Modifier.size(44.dp).clip(RoundedCornerShape(15.dp)).background(CardInk), contentAlignment = Alignment.Center) {
+                        Text("↗", color = VegasLime, fontSize = 27.sp, fontWeight = FontWeight.Black)
+                    }
+                }
+            },
+            bottomBar = {
+                NavigationBar(containerColor = Color(0xFF11101B), contentColor = Color.White) {
+                    AppTab.entries.forEach { tab ->
+                        NavigationBarItem(
+                            selected = selectedTab == tab,
+                            onClick = { selectedTab = tab },
+                            icon = { Text(tab.symbol, fontSize = 19.sp) },
+                            label = { Text(tab.title, fontSize = 11.sp) },
+                            colors = androidx.compose.material3.NavigationBarItemDefaults.colors(
+                                selectedIconColor = ElectricPink,
+                                selectedTextColor = ElectricPink,
+                                indicatorColor = ElectricPink.copy(alpha = 0.12f),
+                                unselectedIconColor = MutedText,
+                                unselectedTextColor = MutedText
+                            )
+                        )
+                    }
+                }
+            }
+        ) { innerPadding ->
+            when (selectedTab) {
+                AppTab.Play -> PlayScreen(
+                    modifier = Modifier.padding(innerPadding),
+                    selectedMode = selectedMode,
+                    onModeChange = { selectedMode = it; promptIndex = 0; gameStarted = false },
+                    gameStarted = gameStarted,
+                    onStart = { gameStarted = true; pickNext() },
+                    prompt = currentPrompt,
+                    player = players[(completedCount + passedCount).mod(players.size.coerceAtLeast(1))],
+                    completedCount = completedCount,
+                    passedCount = passedCount,
+                    onDone = { completedCount++; pickNext() },
+                    onSwap = { pickNext() },
+                    onPass = { passedCount++; pickNext() },
+                    onExit = { gameStarted = false },
+                    onSave = {
+                        val globalIndex = promptDeck.indexOf(currentPrompt)
+                        if (globalIndex !in savedPromptIndices) savedPromptIndices.add(globalIndex)
+                    },
+                    isSaved = promptDeck.indexOf(currentPrompt) in savedPromptIndices,
+                    players = players,
+                    playerInput = playerInput,
+                    onPlayerInput = { playerInput = it },
+                    onAddPlayer = {
+                        val cleaned = playerInput.trim()
+                        if (cleaned.isNotEmpty() && cleaned !in players && players.size < 12) players.add(cleaned)
+                        playerInput = ""
+                    }
+                )
+                AppTab.Dares -> DaresScreen(
+                    modifier = Modifier.padding(innerPadding),
+                    savedIndices = savedPromptIndices,
+                    onToggleSave = { idx -> if (idx in savedPromptIndices) savedPromptIndices.remove(idx) else savedPromptIndices.add(idx) }
+                )
+                AppTab.Vegas -> VegasScreen(Modifier.padding(innerPadding), onPlayVegas = { selectedMode = "Vegas Deck"; gameStarted = false; selectedTab = AppTab.Play })
+                AppTab.Saved -> SavedScreen(
+                    modifier = Modifier.padding(innerPadding),
+                    indices = savedPromptIndices,
+                    onRemove = { savedPromptIndices.remove(it) },
+                    onPlay = { idx ->
+                        val prompt = promptDeck[idx]
+                        selectedMode = when (prompt.tag) {
+                            "VEGAS DECK" -> "Vegas Deck"
+                            "TRUTH OR DARE" -> "Truth or Dare"
+                            "MOST LIKELY TO" -> "Most Likely To"
+                            "WILD CARD" -> "Wild Card"
+                            else -> "Quick Dare"
+                        }
+                        promptIndex = 0
+                        gameStarted = true
+                        selectedTab = AppTab.Play
+                    }
+                )
+            }
+        }
+}
+
+@Composable
+private fun PlayScreen(
+    modifier: Modifier,
+    selectedMode: String,
+    onModeChange: (String) -> Unit,
+    gameStarted: Boolean,
+    onStart: () -> Unit,
+    prompt: GamePrompt,
+    player: String,
+    completedCount: Int,
+    passedCount: Int,
+    onDone: () -> Unit,
+    onSwap: () -> Unit,
+    onPass: () -> Unit,
+    onExit: () -> Unit,
+    onSave: () -> Unit,
+    isSaved: Boolean,
+    players: List<String>,
+    playerInput: String,
+    onPlayerInput: (String) -> Unit,
+    onAddPlayer: () -> Unit
+) {
+    Column(modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 18.dp, vertical = 8.dp)) {
+        Text("LESS SCROLLING. MORE STORY.", color = VegasLime, fontSize = 10.sp, letterSpacing = 1.7.sp, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(8.dp))
+        Text(if (gameStarted) "YOUR TURN." else "SPIN. DARE.\nREPEAT.", color = Color.White, fontSize = 38.sp, lineHeight = 40.sp, fontWeight = FontWeight.Black)
+        Spacer(Modifier.height(8.dp))
+        Text(if (gameStarted) "Pass the phone. Let the next moment happen." else "The party game built for big Vegas energy.", color = MutedText, fontSize = 15.sp)
+        Spacer(Modifier.height(18.dp))
+
+        if (!gameStarted) {
+            Text("CHOOSE YOUR GAME", color = MutedText, fontSize = 11.sp, letterSpacing = 1.5.sp, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(8.dp))
+            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf("Quick Dare", "Sip or Dare", "Truth or Dare", "Vegas Deck", "Most Likely To", "Wild Card").forEach { mode ->
+                    FilterChip(
+                        selected = selectedMode == mode,
+                        onClick = { onModeChange(mode) },
+                        label = { Text(mode) },
+                        colors = androidx.compose.material3.FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = ElectricPink.copy(alpha = 0.18f),
+                            selectedLabelColor = Color.White,
+                            labelColor = MutedText
+                        )
                     )
                 }
             }
+            Spacer(Modifier.height(16.dp))
+            Card(colors = CardDefaults.cardColors(containerColor = CardInk), shape = RoundedCornerShape(24.dp), modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(20.dp)) {
+                    Text("✦  TONIGHT'S ENERGY", color = ElectricPink, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.4.sp)
+                    Spacer(Modifier.height(12.dp))
+                    Text(selectedMode.uppercase(), color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Black)
+                    Spacer(Modifier.height(6.dp))
+                    Text("Fast rounds. Funny prompts. Your crew sets the vibe.", color = MutedText, fontSize = 14.sp)
+                    Spacer(Modifier.height(18.dp))
+                    Button(onClick = onStart, modifier = Modifier.fillMaxWidth().height(54.dp), shape = RoundedCornerShape(16.dp), colors = ButtonDefaults.buttonColors(containerColor = ElectricPink, contentColor = Color.White)) {
+                        Text("START THE ROUND  →", fontWeight = FontWeight.Black, letterSpacing = 1.sp)
+                    }
+                }
+            }
+            Spacer(Modifier.height(22.dp))
+            Text("ADD YOUR CREW", color = MutedText, fontSize = 11.sp, letterSpacing = 1.5.sp, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(8.dp))
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(
+                    value = playerInput,
+                    onValueChange = onPlayerInput,
+                    modifier = Modifier.weight(1f),
+                    singleLine = true,
+                    placeholder = { Text("Player name", color = MutedText) },
+                    colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White, focusedBorderColor = ElectricPink, unfocusedBorderColor = LineColor, cursorColor = ElectricPink)
+                )
+                Button(onClick = onAddPlayer, colors = ButtonDefaults.buttonColors(containerColor = Ultraviolet), shape = RoundedCornerShape(14.dp)) { Text("ADD") }
+            }
+            Spacer(Modifier.height(10.dp))
+            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                players.forEach { name ->
+                    Surface(color = CardInk, shape = CircleShape) { Text(name, Modifier.padding(horizontal = 13.dp, vertical = 8.dp), fontSize = 12.sp, color = Color.White) }
+                }
+            }
+        } else {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Text("UP NEXT: ${player.uppercase()}", color = VegasLime, fontSize = 11.sp, letterSpacing = 1.5.sp, fontWeight = FontWeight.Bold)
+                TextButton(onClick = onExit) { Text("END GAME", color = MutedText, fontSize = 11.sp) }
+            }
+            Spacer(Modifier.height(8.dp))
+            Card(colors = CardDefaults.cardColors(containerColor = CardInk), shape = RoundedCornerShape(26.dp), modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.fillMaxWidth().padding(22.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("✦  ${prompt.tag}  ✦", color = ElectricPink, fontSize = 11.sp, letterSpacing = 1.4.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+                    Spacer(Modifier.height(24.dp))
+                    Box(Modifier.size(72.dp).clip(RoundedCornerShape(22.dp)).background(Ultraviolet.copy(alpha = 0.18f)), contentAlignment = Alignment.Center) {
+                        Text(if (prompt.category == "TRUTH") "?" else if (prompt.category == "VOTE") "👀" else "⚡", color = VegasLime, fontSize = 37.sp, fontWeight = FontWeight.Black)
+                    }
+                    Spacer(Modifier.height(20.dp))
+                    Text(prompt.title, color = Color.White, fontSize = 25.sp, fontWeight = FontWeight.Black, textAlign = TextAlign.Center)
+                    Spacer(Modifier.height(12.dp))
+                    Text(prompt.prompt, color = Color(0xFFF0EDF9), fontSize = 19.sp, lineHeight = 27.sp, textAlign = TextAlign.Center)
+                    Spacer(Modifier.height(18.dp))
+                    Surface(color = Ultraviolet.copy(alpha = 0.16f), shape = CircleShape) {
+                        Text("YOUR GAME • YOUR RULES", Modifier.padding(horizontal = 13.dp, vertical = 7.dp), color = Color(0xFFC7B9FF), fontSize = 10.sp, letterSpacing = 1.sp)
+                    }
+                    Spacer(Modifier.height(22.dp))
+                    Button(onClick = onDone, modifier = Modifier.fillMaxWidth().height(52.dp), shape = RoundedCornerShape(15.dp), colors = ButtonDefaults.buttonColors(containerColor = ElectricPink)) {
+                        Text("DONE — NEXT PLAYER", fontWeight = FontWeight.Black, letterSpacing = 0.5.sp)
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(onClick = onSwap, modifier = Modifier.weight(1f), shape = RoundedCornerShape(14.dp), colors = ButtonDefaults.buttonColors(containerColor = Ultraviolet.copy(alpha = 0.22f), contentColor = Color.White)) { Text("↻ SWAP") }
+                        Button(onClick = onPass, modifier = Modifier.weight(1f), shape = RoundedCornerShape(14.dp), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF252333), contentColor = Color.White)) { Text("PASS") }
+                    }
+                    TextButton(onClick = onSave) { Text(if (isSaved) "♥  SAVED TO FAVORITES" else "♡  SAVE THIS DARE", color = if (isSaved) ElectricPink else MutedText) }
+                }
+            }
+            Spacer(Modifier.height(14.dp))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                StatPill("COMPLETED", completedCount.toString(), VegasLime)
+                StatPill("PASSED", passedCount.toString(), MutedText)
+                StatPill("PLAYERS", players.size.toString(), ElectricPink)
+            }
         }
-    )
-}
-
-fun getFavoriteStatusForID(drinkID: String?, list: ArrayList<String>): Boolean {
-    return list.contains(drinkID)
-}
-
-fun updateFavoriteList(
-    drinkID: String,
-    shouldBeAdded: Boolean,
-    sharedPreferencesHelper: SharedPreferencesHelper,
-    list: ArrayList<String>
-) {
-    if (shouldBeAdded) {
-        if (!list.contains(drinkID)) list.add(drinkID)
-    } else {
-        list.remove(drinkID)
+        Spacer(Modifier.height(20.dp))
+        Text("21+ • Drinking is optional. Passing is always okay. Never drink and drive.", color = MutedText, fontSize = 11.sp, lineHeight = 16.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp))
     }
-    sharedPreferencesHelper.saveFavoriteList(list)
+}
+
+@Composable
+private fun StatPill(label: String, value: String, color: Color) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(value, color = color, fontSize = 23.sp, fontWeight = FontWeight.Black)
+        Text(label, color = MutedText, fontSize = 9.sp, letterSpacing = 1.sp)
+    }
+}
+
+@Composable
+private fun DaresScreen(modifier: Modifier, savedIndices: List<Int>, onToggleSave: (Int) -> Unit) {
+    Column(modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(18.dp)) {
+        Text("THE DECK", color = Color.White, fontSize = 34.sp, fontWeight = FontWeight.Black)
+        Text("Quick hits for the group chat that is real life.", color = MutedText, fontSize = 14.sp)
+        Spacer(Modifier.height(16.dp))
+        promptDeck.forEachIndexed { index, prompt ->
+            PromptListCard(prompt, saved = index in savedIndices, onSave = { onToggleSave(index) })
+            Spacer(Modifier.height(10.dp))
+        }
+    }
+}
+
+@Composable
+private fun SavedScreen(modifier: Modifier, indices: List<Int>, onRemove: (Int) -> Unit, onPlay: (Int) -> Unit) {
+    Column(modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(18.dp)) {
+        Text("YOUR SAVED DECK", color = Color.White, fontSize = 31.sp, fontWeight = FontWeight.Black)
+        Spacer(Modifier.height(6.dp))
+        Text("Keep your favorites ready for the next round.", color = MutedText)
+        Spacer(Modifier.height(16.dp))
+        if (indices.isEmpty()) {
+            EmptyState("♡", "Nothing saved yet", "Save a prompt from the Dares list or during a round.")
+        } else {
+            indices.toList().forEach { index ->
+                if (index in promptDeck.indices) {
+                    PromptListCard(promptDeck[index], saved = true, onSave = { onRemove(index) }, onPlay = { onPlay(index) })
+                    Spacer(Modifier.height(10.dp))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PromptListCard(prompt: GamePrompt, saved: Boolean, onSave: () -> Unit, onPlay: (() -> Unit)? = null) {
+    Card(colors = CardDefaults.cardColors(containerColor = CardInk), shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(15.dp)) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                Text(prompt.tag, color = ElectricPink, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+                TextButton(onClick = onSave) { Text(if (saved) "♥ SAVED" else "♡ SAVE", color = if (saved) ElectricPink else MutedText) }
+            }
+            Text(prompt.title, color = Color.White, fontSize = 19.sp, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(5.dp))
+            Text(prompt.prompt, color = MutedText, fontSize = 14.sp, lineHeight = 20.sp)
+            if (onPlay != null) {
+                Spacer(Modifier.height(6.dp))
+                TextButton(onClick = onPlay) { Text("PLAY THIS TYPE  →", color = VegasLime) }
+            }
+        }
+    }
+}
+
+@Composable
+private fun VegasScreen(modifier: Modifier, onPlayVegas: () -> Unit) {
+    Column(modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(18.dp)) {
+        Text("VEGAS MODE", color = Color.White, fontSize = 34.sp, fontWeight = FontWeight.Black)
+        Text("A little extra neon for your night.", color = MutedText, fontSize = 14.sp)
+        Spacer(Modifier.height(16.dp))
+        Card(colors = CardDefaults.cardColors(containerColor = CardInk), shape = RoundedCornerShape(24.dp)) {
+            Column(Modifier.padding(22.dp)) {
+                Text("✦", color = VegasLime, fontSize = 36.sp)
+                Text("WHAT HAPPENS IN VEGAS…", color = ElectricPink, fontSize = 12.sp, letterSpacing = 1.5.sp, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.height(10.dp))
+                Text("Your crew. Your dares. Your story.", color = Color.White, fontSize = 25.sp, fontWeight = FontWeight.Black, lineHeight = 30.sp)
+                Spacer(Modifier.height(8.dp))
+                Text("Unlock the Vegas-themed prompt deck now. Venue discovery and night-out tools can be added here later—the game stays front and center.", color = MutedText, fontSize = 14.sp, lineHeight = 21.sp)
+                Spacer(Modifier.height(18.dp))
+                Button(onClick = onPlayVegas, modifier = Modifier.fillMaxWidth().height(52.dp), shape = RoundedCornerShape(15.dp), colors = ButtonDefaults.buttonColors(containerColor = ElectricPink)) { Text("PLAY VEGAS DECK  →", fontWeight = FontWeight.Black) }
+            }
+        }
+        Spacer(Modifier.height(16.dp))
+        listOf("THE STRIP ENERGY" to "Big entrance, main-character moments, ridiculous headlines.", "DOWNTOWN CHAOS" to "Wild-card stories, group votes, and unexpected plot twists.", "CREW CLASSICS" to "Friendly dares and truths that work at any table.").forEach { (title, body) ->
+            Card(colors = CardDefaults.cardColors(containerColor = CardInk), shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(16.dp)) {
+                    Text(title, color = VegasLime, fontSize = 11.sp, letterSpacing = 1.2.sp, fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.height(5.dp))
+                    Text(body, color = Color.White, fontSize = 14.sp, lineHeight = 20.sp)
+                }
+            }
+            Spacer(Modifier.height(10.dp))
+        }
+    }
+}
+
+@Composable
+private fun EmptyState(symbol: String, title: String, subtitle: String) {
+    Card(colors = CardDefaults.cardColors(containerColor = CardInk), shape = RoundedCornerShape(22.dp), modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.fillMaxWidth().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(symbol, fontSize = 35.sp, color = ElectricPink)
+            Spacer(Modifier.height(10.dp))
+            Text(title, color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(5.dp))
+            Text(subtitle, color = MutedText, textAlign = TextAlign.Center, fontSize = 14.sp)
+        }
+    }
 }

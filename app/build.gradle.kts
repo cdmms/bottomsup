@@ -11,7 +11,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "fr.isen.veith.thegreatestcocktailapp"
+        applicationId = "com.bottomsup.vegas"
         minSdk = 28
         targetSdk = 36
         versionCode = 1
