@@ -27,6 +27,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -38,6 +39,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
@@ -56,6 +58,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import fr.isen.veith.thegreatestcocktailapp.ui.theme.TheGreatestCocktailAppTheme
 import kotlin.random.Random
+import kotlinx.coroutines.delay
 
 private val NightInk = Color(0xFF080813)
 private val CardInk = Color(0xFF151421)
@@ -83,6 +86,15 @@ private data class PlayerStats(
 )
 
 private val playerRoles = listOf("Hype Captain", "Storyteller", "Truth Seeker", "Wildcard")
+
+private data class PartyModifier(val id: String, val name: String, val description: String)
+
+private val partyModifiers = listOf(
+    PartyModifier("DOUBLE_FIVE", "DOUBLE FIVE", "Every fifth completed card earns +2 extra points."),
+    PartyModifier("STREAK_PARTY", "STREAK PARTY", "Build a 2-card streak to earn the streak bonus."),
+    PartyModifier("COMEBACK_CLUB", "COMEBACK CLUB", "The lowest-scoring player earns +1 extra point when they complete a card."),
+    PartyModifier("CHAOS_SHIFT", "CHAOS SHIFT", "A randomized chaos twist fires every 3 turns instead of every 4.")
+)
 
 private val promptDeck = listOf(
     GamePrompt("Main character", "Give a 10-second acceptance speech for winning ‘Best Night Out’.", "DARE", "QUICK DARE"),
@@ -177,6 +189,51 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 private fun BottomsUpApp() {
+    var splashVisible by rememberSaveable { mutableStateOf(true) }
+    LaunchedEffect(Unit) {
+        delay(1100)
+        splashVisible = false
+    }
+    if (splashVisible) BottomsUpLoadingSplash() else BottomsUpGameApp()
+}
+
+@Composable
+private fun BottomsUpLoadingSplash() {
+    Box(
+        modifier = Modifier.fillMaxSize().background(NightInk),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.fillMaxWidth().padding(28.dp)
+        ) {
+            Box(
+                modifier = Modifier.size(112.dp).clip(RoundedCornerShape(30.dp)).background(CardInk),
+                contentAlignment = Alignment.Center
+            ) {
+                Text("BU", color = ElectricPink, fontSize = 39.sp, fontWeight = FontWeight.Black, letterSpacing = (-2).sp)
+            }
+            Spacer(Modifier.height(24.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("BOTTOMS", color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.Black, letterSpacing = 1.sp)
+                Text("UP", color = ElectricPink, fontSize = 30.sp, fontWeight = FontWeight.Black, letterSpacing = 1.sp)
+            }
+            Spacer(Modifier.height(7.dp))
+            Text("VEGAS PARTY GAME", color = MutedText, fontSize = 11.sp, letterSpacing = 3.sp)
+            Spacer(Modifier.height(32.dp))
+            CircularProgressIndicator(
+                modifier = Modifier.size(30.dp),
+                color = ElectricPink,
+                strokeWidth = 3.dp
+            )
+            Spacer(Modifier.height(14.dp))
+            Text("SHUFFLING THE NEXT MOMENT…", color = MutedText, fontSize = 10.sp, letterSpacing = 1.5.sp)
+        }
+    }
+}
+
+@Composable
+private fun BottomsUpGameApp() {
     var selectedTab by rememberSaveable { mutableStateOf(AppTab.Play) }
     var selectedMode by rememberSaveable { mutableStateOf("Quick Dare") }
     var gameStarted by rememberSaveable { mutableStateOf(false) }
@@ -185,6 +242,10 @@ private fun BottomsUpApp() {
     var completedCount by rememberSaveable { mutableIntStateOf(0) }
     var passedCount by rememberSaveable { mutableIntStateOf(0) }
     var sessionEnded by rememberSaveable { mutableStateOf(false) }
+    var sessionModifierId by rememberSaveable { mutableStateOf(partyModifiers.random().id) }
+    var chaosOffset by rememberSaveable { mutableIntStateOf(Random.nextInt(chaosTwists.size)) }
+    val activeModifier = partyModifiers.firstOrNull { it.id == sessionModifierId } ?: partyModifiers.first()
+    val chaosInterval = if (activeModifier.id == "CHAOS_SHIFT") 3 else 4
     var playerInput by rememberSaveable { mutableStateOf("") }
     val context = LocalContext.current
     val gamePreferences = remember(context) { context.getSharedPreferences("bottomsup_game", Context.MODE_PRIVATE) }
@@ -227,6 +288,7 @@ private fun BottomsUpApp() {
 
     val filteredPrompts = remember(selectedMode, customPrompts.size) {
         when (selectedMode) {
+            "Shuffle Mix" -> allPrompts
             "Truth or Dare" -> allPrompts.filter { it.category == "TRUTH" || it.category == "DARE" }
             "Sip or Dare" -> allPrompts.filter { it.category == "DRINK" }
             "Vegas Deck" -> allPrompts.filter { it.tag == "VEGAS DECK" || it.category == "VEGAS" }
@@ -300,8 +362,13 @@ private fun BottomsUpApp() {
                     "Wildcard" -> true
                     else -> false
                 }
-                val streakBonus = newStreak > 0 && newStreak % 3 == 0
-                val earnedPoints = 1 + (if (roleBonus) 1 else 0) + (if (streakBonus) 1 else 0)
+                val streakInterval = if (activeModifier.id == "STREAK_PARTY") 2 else 3
+                val streakBonus = newStreak > 0 && newStreak % streakInterval == 0
+                val comebackBonus = activeModifier.id == "COMEBACK_CLUB" &&
+                    players.size > 1 && player.points <= (players.minOfOrNull { it.points } ?: player.points)
+                val doubleFiveBonus = activeModifier.id == "DOUBLE_FIVE" && (completedCount + 1) % 5 == 0
+                val modifierBonus = (if (comebackBonus) 1 else 0) + (if (doubleFiveBonus) 2 else 0)
+                val earnedPoints = 1 + (if (roleBonus) 1 else 0) + (if (streakBonus) 1 else 0) + modifierBonus
                 players[index] = player.copy(
                     points = player.points + earnedPoints,
                     currentStreak = newStreak,
@@ -327,6 +394,7 @@ private fun BottomsUpApp() {
             appendLine("🎰 BOTTOMSUP — TONIGHT'S RECAP")
             appendLine("Mode: $selectedMode")
             appendLine("Turns: $totalTurns • Completed: $completedCount • Passed: $passedCount")
+            appendLine("Session twist: ${activeModifier.name} — ${activeModifier.description}")
             if (totalTurns > 0 && leader != null) appendLine("MVP: ${leader.name} — ${leader.points} points")
             if (streakLeader != null && streakLeader.bestStreak > 0) appendLine("Longest streak: ${streakLeader.name} — ${streakLeader.bestStreak}")
             appendLine()
@@ -391,12 +459,25 @@ private fun BottomsUpApp() {
                     selectedMode = selectedMode,
                     onModeChange = { selectedMode = it; selectedPromptText = null; promptIndex = 0; drawnPrompts.clear(); gameStarted = false },
                     gameStarted = gameStarted,
-                    onStart = { if (sessionEnded) resetSession(); gameStarted = true; sessionEnded = false; pickNext() },
+                    onStart = {
+                        if (sessionEnded) {
+                            resetSession()
+                            sessionModifierId = partyModifiers.random().id
+                            chaosOffset = Random.nextInt(chaosTwists.size)
+                        }
+                        gameStarted = true
+                        sessionEnded = false
+                        pickNext()
+                    },
                     prompt = currentPrompt,
                     player = currentPlayer,
                     completedCount = completedCount,
                     passedCount = passedCount,
                     chaosEnabled = chaosEnabled,
+                    sessionModifierName = activeModifier.name,
+                    sessionModifierDescription = activeModifier.description,
+                    chaosInterval = chaosInterval,
+                    chaosOffset = chaosOffset,
                     onDone = { finishTurn(passed = false) },
                     onSwap = { pickNext() },
                     onPass = { finishTurn(passed = true) },
@@ -439,7 +520,14 @@ private fun BottomsUpApp() {
                     selectedMode = selectedMode,
                     sessionEnded = sessionEnded,
                     onShare = { shareRecap() },
-                    onReplay = { resetSession(); selectedTab = AppTab.Play },
+                    sessionModifierName = activeModifier.name,
+                    sessionModifierDescription = activeModifier.description,
+                    onReplay = {
+                        resetSession()
+                        sessionModifierId = partyModifiers.random().id
+                        chaosOffset = Random.nextInt(chaosTwists.size)
+                        selectedTab = AppTab.Play
+                    },
                     onEndSession = { gameStarted = false; sessionEnded = true }
                 )
                 AppTab.Settings -> SettingsScreen(
@@ -499,6 +587,10 @@ private fun PlayScreen(
     completedCount: Int,
     passedCount: Int,
     chaosEnabled: Boolean,
+    sessionModifierName: String,
+    sessionModifierDescription: String,
+    chaosInterval: Int,
+    chaosOffset: Int,
     onDone: () -> Unit,
     onSwap: () -> Unit,
     onPass: () -> Unit,
@@ -522,7 +614,7 @@ private fun PlayScreen(
             Text("CHOOSE YOUR GAME", color = MutedText, fontSize = 11.sp, letterSpacing = 1.5.sp, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(8.dp))
             Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf("Quick Dare", "Sip or Dare", "Truth or Dare", "Never Have I Ever", "Would You Rather", "Hot Seat", "Story Chain", "Lightning Round", "Vegas Deck", "Most Likely To", "Wild Card").forEach { mode ->
+                listOf("Quick Dare", "Shuffle Mix", "Sip or Dare", "Truth or Dare", "Never Have I Ever", "Would You Rather", "Hot Seat", "Story Chain", "Lightning Round", "Vegas Deck", "Most Likely To", "Wild Card").forEach { mode ->
                     FilterChip(
                         selected = selectedMode == mode,
                         onClick = { onModeChange(mode) },
@@ -543,6 +635,10 @@ private fun PlayScreen(
                     Text(selectedMode.uppercase(), color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Black)
                     Spacer(Modifier.height(6.dp))
                     Text("Fast rounds. Funny prompts. Your crew sets the vibe.", color = MutedText, fontSize = 14.sp)
+                    Spacer(Modifier.height(12.dp))
+                    Text("SESSION TWIST · ${sessionModifierName}", color = VegasLime, fontSize = 10.sp, fontWeight = FontWeight.Black, letterSpacing = 1.sp)
+                    Spacer(Modifier.height(4.dp))
+                    Text(sessionModifierDescription, color = MutedText, fontSize = 12.sp, lineHeight = 18.sp)
                     Spacer(Modifier.height(18.dp))
                     Button(onClick = onStart, modifier = Modifier.fillMaxWidth().height(54.dp), shape = RoundedCornerShape(16.dp), colors = ButtonDefaults.buttonColors(containerColor = ElectricPink, contentColor = Color.White)) {
                         Text("START THE ROUND  →", fontWeight = FontWeight.Black, letterSpacing = 1.sp)
@@ -580,6 +676,18 @@ private fun PlayScreen(
                 TextButton(onClick = onExit) { Text("END GAME", color = MutedText, fontSize = 11.sp) }
             }
             Spacer(Modifier.height(8.dp))
+            Card(
+                colors = CardDefaults.cardColors(containerColor = Ultraviolet.copy(alpha = 0.16f)),
+                shape = RoundedCornerShape(16.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(Modifier.padding(12.dp)) {
+                    Text("🎲 SESSION TWIST · ${sessionModifierName}", color = VegasLime, fontSize = 10.sp, fontWeight = FontWeight.Black, letterSpacing = 1.sp)
+                    Spacer(Modifier.height(4.dp))
+                    Text(sessionModifierDescription, color = MutedText, fontSize = 12.sp, lineHeight = 17.sp)
+                }
+            }
+            Spacer(Modifier.height(10.dp))
             Card(colors = CardDefaults.cardColors(containerColor = CardInk), shape = RoundedCornerShape(26.dp), modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.fillMaxWidth().padding(22.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                     Text("✦  ${prompt.tag}  ✦", color = ElectricPink, fontSize = 11.sp, letterSpacing = 1.4.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
@@ -591,7 +699,7 @@ private fun PlayScreen(
                     Text(prompt.title, color = Color.White, fontSize = 25.sp, fontWeight = FontWeight.Black, textAlign = TextAlign.Center)
                     Spacer(Modifier.height(12.dp))
                     Text(prompt.prompt, color = Color(0xFFF0EDF9), fontSize = 19.sp, lineHeight = 27.sp, textAlign = TextAlign.Center)
-                    if (chaosEnabled && (completedCount + passedCount) > 0 && (completedCount + passedCount) % 4 == 0) {
+                    if (chaosEnabled && (completedCount + passedCount) > 0 && (completedCount + passedCount) % chaosInterval == 0) {
                         Spacer(Modifier.height(14.dp))
                         Card(
                             colors = CardDefaults.cardColors(containerColor = Ultraviolet.copy(alpha = 0.20f)),
@@ -601,7 +709,7 @@ private fun PlayScreen(
                             Column(Modifier.padding(14.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                                 Text("⚡ CHAOS ROUND", color = VegasLime, fontSize = 11.sp, fontWeight = FontWeight.Black, letterSpacing = 1.4.sp)
                                 Spacer(Modifier.height(5.dp))
-                                Text(chaosTwists[((completedCount + passedCount) / 4 - 1).mod(chaosTwists.size)], color = Color.White, textAlign = TextAlign.Center, fontSize = 14.sp, lineHeight = 20.sp)
+                                Text(chaosTwists[(((completedCount + passedCount) / chaosInterval) - 1 + chaosOffset).mod(chaosTwists.size)], color = Color.White, textAlign = TextAlign.Center, fontSize = 14.sp, lineHeight = 20.sp)
                             }
                         }
                     }
@@ -735,6 +843,8 @@ private fun ScoreboardScreen(
     passedCount: Int,
     selectedMode: String,
     sessionEnded: Boolean,
+    sessionModifierName: String,
+    sessionModifierDescription: String,
     onShare: () -> Unit,
     onReplay: () -> Unit,
     onEndSession: () -> Unit
@@ -746,6 +856,8 @@ private fun ScoreboardScreen(
     Column(modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(18.dp)) {
         Text(if (sessionEnded) "TONIGHT'S RECAP" else "PARTY SCOREBOARD", color = Color.White, fontSize = 31.sp, fontWeight = FontWeight.Black)
         Text("Points reward completing cards, streaks, and role bonuses—not drinking.", color = MutedText, fontSize = 13.sp, lineHeight = 19.sp)
+        Spacer(Modifier.height(6.dp))
+        Text("SESSION TWIST · ${sessionModifierName} — ${sessionModifierDescription}", color = VegasLime, fontSize = 11.sp, lineHeight = 16.sp)
         Spacer(Modifier.height(16.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
             StatPill("TURNS", totalTurns.toString(), VegasLime)
