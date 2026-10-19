@@ -505,7 +505,7 @@ private fun PlayScreen(
     onExit: () -> Unit,
     onSave: () -> Unit,
     isSaved: Boolean,
-    players: List<String>,
+    players: List<PlayerStats>,
     playerInput: String,
     onPlayerInput: (String) -> Unit,
     onAddPlayer: () -> Unit
